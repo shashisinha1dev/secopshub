@@ -1,0 +1,829 @@
+{
+  "info": {
+    "_postman_id": "bcb95d41-2afe-4bda-8bf0-3dec5b6f0949",
+    "name": "SecOpsHub API — JWT Secured",
+    "description": "JWT-secured SecOpsHub API. Run Login as Incident Manager first to save accessToken, then run the business requests through the API Gateway.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:8080"
+    },
+    {
+      "key": "incidentId",
+      "value": ""
+    },
+    {
+      "key": "relatedIncidentId",
+      "value": ""
+    },
+    {
+      "key": "alertExternalId",
+      "value": ""
+    },
+    {
+      "key": "alertId",
+      "value": ""
+    },
+    {
+      "key": "incidentIdFromAlert",
+      "value": ""
+    },
+    {
+      "key": "accessToken",
+      "value": ""
+    },
+    {
+      "key": "username",
+      "value": "manager@secopshub.local"
+    }
+  ],
+  "item": [
+    {
+      "name": "Login as Incident Manager (run first)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Login successful', function () { pm.response.to.have.status(200); });",
+              "const body = pm.response.json();",
+              "if (body.accessToken) pm.collectionVariables.set('accessToken', body.accessToken);",
+              "if (body.username) pm.collectionVariables.set('username', body.username);",
+              "pm.test('JWT access token saved', function () { pm.expect(body.accessToken).to.be.a('string').and.not.empty; });",
+              "console.log('Authenticated user:', body.username, 'roles:', body.roles);"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"username\": \"manager@secopshub.local\",\n  \"password\": \"Manager@123\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/auth/login",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "auth",
+            "login"
+          ]
+        },
+        "description": "Run this first. Saves accessToken. This role can run all sample workflows, including severity changes."
+      },
+      "auth": {
+        "type": "noauth"
+      }
+    },
+    {
+      "name": "Gateway health",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/actuator/health",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "actuator",
+            "health"
+          ]
+        },
+        "description": "Confirms the API Gateway is up."
+      },
+      "auth": {
+        "type": "noauth"
+      }
+    },
+    {
+      "name": "Auth Service health through Gateway",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/auth/health",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "auth",
+            "health"
+          ]
+        }
+      },
+      "auth": {
+        "type": "noauth"
+      }
+    },
+    {
+      "name": "Incident Service health through Gateway",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/health",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "health"
+          ]
+        }
+      },
+      "auth": {
+        "type": "noauth"
+      }
+    },
+    {
+      "name": "List violation categories",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/reference/violation-categories",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "reference",
+            "violation-categories"
+          ]
+        }
+      }
+    },
+    {
+      "name": "Create incident",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/incidents",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "incidents"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"title\": \"Repeated failed logins followed by successful login\",\n  \"description\": \"Several failed logins were followed by a successful login from an unusual IP address.\",\n  \"incidentType\": \"UNAUTHORIZED_ACCESS\",\n  \"natureOfViolation\": \"ACCESS_CONTROL\",\n  \"severity\": \"HIGH\",\n  \"classificationStatus\": \"SUSPECTED\",\n  \"reportedBy\": \"soc.analyst@example.test\",\n  \"assignedTo\": \"tier2.analyst@example.test\",\n  \"businessUnit\": \"Information Technology\",\n  \"policyReference\": \"IAM-STD-004\",\n  \"occurredAt\": \"2026-10-16T09:05:00\",\n  \"detectedAt\": \"2026-10-16T09:10:00\",\n  \"reportedAt\": \"2026-10-16T09:20:00\",\n  \"businessImpact\": \"Potential unauthorized account access; impact not confirmed.\",\n  \"rootCause\": \"\",\n  \"correctiveAction\": \"Investigate sign-in events and validate MFA status.\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Created incident', function () { pm.response.to.have.status(201); });",
+              "const body = pm.response.json();",
+              "if (body.incidentId) pm.collectionVariables.set('incidentId', body.incidentId);",
+              "pm.test('Incident ID returned', function () { pm.expect(body.incidentId).to.be.a('string'); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Create related incident",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/incidents",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "incidents"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"title\": \"Unusual account sign-in alert\",\n  \"description\": \"A separate alert observed unusual sign-in activity for the same user.\",\n  \"incidentType\": \"SUSPICIOUS_LOGIN\",\n  \"natureOfViolation\": \"ACCESS_CONTROL\",\n  \"severity\": \"MEDIUM\",\n  \"classificationStatus\": \"SUSPECTED\",\n  \"reportedBy\": \"siem.connector@example.test\",\n  \"assignedTo\": \"tier1.analyst@example.test\",\n  \"businessUnit\": \"Information Technology\",\n  \"policyReference\": \"IAM-STD-004\",\n  \"reportedAt\": \"2026-10-16T10:15:00\",\n  \"businessImpact\": \"Under review.\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Created related incident', function () { pm.response.to.have.status(201); });",
+              "const body = pm.response.json();",
+              "if (body.incidentId) pm.collectionVariables.set('relatedIncidentId', body.incidentId);"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Get incident by ID",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/incidents/{{incidentId}}",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "incidents",
+            "{{incidentId}}"
+          ]
+        }
+      }
+    },
+    {
+      "name": "Search high-severity access-control incidents",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/incidents?severity=HIGH&natureOfViolation=ACCESS_CONTROL&page=0&size=20",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "incidents"
+          ],
+          "query": [
+            {
+              "key": "severity",
+              "value": "HIGH"
+            },
+            {
+              "key": "natureOfViolation",
+              "value": "ACCESS_CONTROL"
+            },
+            {
+              "key": "page",
+              "value": "0"
+            },
+            {
+              "key": "size",
+              "value": "20"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "Update severity",
+      "request": {
+        "method": "PATCH",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/incidents/{{incidentId}}/severity",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "incidents",
+            "{{incidentId}}",
+            "severity"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"severity\": \"CRITICAL\",\n  \"performedBy\": \"security.manager@example.test\",\n  \"rationale\": \"Investigation indicates higher potential business impact.\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "Transition status to TRIAGED",
+      "request": {
+        "method": "PATCH",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/incidents/{{incidentId}}/status",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "incidents",
+            "{{incidentId}}",
+            "status"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"status\": \"TRIAGED\",\n  \"performedBy\": \"soc.analyst@example.test\",\n  \"rationale\": \"Initial validation completed; investigation required.\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "Transition status to INVESTIGATING",
+      "request": {
+        "method": "PATCH",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/incidents/{{incidentId}}/status",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "incidents",
+            "{{incidentId}}",
+            "status"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"status\": \"INVESTIGATING\",\n  \"performedBy\": \"tier2.analyst@example.test\",\n  \"rationale\": \"Analyst started the investigation.\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "Link the incidents",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/incidents/{{incidentId}}/relationships",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "incidents",
+            "{{incidentId}}",
+            "relationships"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"relatedIncidentId\": \"{{relatedIncidentId}}\",\n  \"relationshipType\": \"RELATED_ACTIVITY\",\n  \"createdBy\": \"soc.analyst@example.test\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "List incident relationships",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/incidents/{{incidentId}}/relationships",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "incidents",
+            "{{incidentId}}",
+            "relationships"
+          ]
+        }
+      }
+    },
+    {
+      "name": "Get incident audit events",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/incidents/{{incidentId}}/audit-events",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "incidents",
+            "{{incidentId}}",
+            "audit-events"
+          ]
+        }
+      }
+    },
+    {
+      "name": "Quarterly report FY2026-27 Q3",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/reports/quarterly?fiscalYear=FY2026-27&quarter=Q3",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "reports",
+            "quarterly"
+          ],
+          "query": [
+            {
+              "key": "fiscalYear",
+              "value": "FY2026-27"
+            },
+            {
+              "key": "quarter",
+              "value": "Q3"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "All incidents in FY2026-27 Q3",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/incidents?fiscalYear=FY2026-27&quarter=Q3&page=0&size=20",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "incidents"
+          ],
+          "query": [
+            {
+              "key": "fiscalYear",
+              "value": "FY2026-27"
+            },
+            {
+              "key": "quarter",
+              "value": "Q3"
+            },
+            {
+              "key": "page",
+              "value": "0"
+            },
+            {
+              "key": "size",
+              "value": "20"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "Alert Ingestion Service health through Gateway",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/alerts/health",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "alerts",
+            "health"
+          ]
+        },
+        "description": "Confirms that the Gateway route to Alert Ingestion Service (port 8082) works."
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Alert service health', function () { pm.response.to.have.status(200); });"
+            ]
+          }
+        }
+      ],
+      "auth": {
+        "type": "noauth"
+      }
+    },
+    {
+      "name": "Submit simulated security alert (async)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/alerts",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "alerts"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"externalAlertId\": \"{{alertExternalId}}\",\n  \"source\": \"SIMULATED_SIEM\",\n  \"title\": \"Repeated failed logins followed by unusual successful login\",\n  \"description\": \"A simulated SIEM alert reports multiple failed logins followed by a successful login from an unfamiliar IP address.\",\n  \"incidentType\": \"UNAUTHORIZED_ACCESS\",\n  \"natureOfViolation\": \"ACCESS_CONTROL\",\n  \"severity\": \"HIGH\",\n  \"classificationStatus\": \"SUSPECTED\",\n  \"reportedBy\": \"siem.connector@example.test\",\n  \"assignedTo\": \"tier2.analyst@example.test\",\n  \"businessUnit\": \"Information Technology\",\n  \"policyReference\": \"IAM-STD-004\",\n  \"occurredAt\": \"2026-10-16T09:05:00\",\n  \"detectedAt\": \"2026-10-16T09:10:00\",\n  \"reportedAt\": \"2026-10-16T09:20:00\",\n  \"businessImpact\": \"Potential account compromise; impact not confirmed.\",\n  \"rootCause\": \"\",\n  \"correctiveAction\": \"Review sign-in events and verify MFA status.\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const externalId = 'DEMO-SIEM-' + pm.variables.replaceIn('{{$guid}}');",
+              "pm.collectionVariables.set('alertExternalId', externalId);"
+            ]
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Alert accepted for asynchronous processing', function () { pm.response.to.have.status(202); });",
+              "const body = pm.response.json();",
+              "if (body.externalAlertId) pm.collectionVariables.set('alertExternalId', body.externalAlertId);",
+              "if (body.alertId) pm.collectionVariables.set('alertId', body.alertId);",
+              "pm.test('Alert ID returned', function () { pm.expect(body.alertId).to.be.a('string'); });"
+            ]
+          }
+        }
+      ],
+      "description": "Creates an alert and publishes AlertReceivedEvent to RabbitMQ. Expected status is 202 Accepted; incident creation happens asynchronously."
+    },
+    {
+      "name": "Get alert processing status",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/alerts/{{alertExternalId}}",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "alerts",
+            "{{alertExternalId}}"
+          ]
+        },
+        "description": "Run this request again until status becomes INCIDENT_CREATED. The response includes createdIncidentId when the Incident Service has handled the event."
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Alert status available', function () { pm.response.to.have.status(200); });",
+              "const body = pm.response.json();",
+              "if (body.createdIncidentId) pm.collectionVariables.set('incidentIdFromAlert', body.createdIncidentId);",
+              "console.log('Current alert status:', body.status, 'incidentId:', body.createdIncidentId);"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Get incident created from alert",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/incidents/{{incidentIdFromAlert}}",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "incidents",
+            "{{incidentIdFromAlert}}"
+          ]
+        },
+        "description": "Run after Get alert processing status shows INCIDENT_CREATED. Confirms the Incident Service persisted the linked incident."
+      }
+    },
+    {
+      "name": "Role demo: Login as SOC Analyst",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Login successful', function () { pm.response.to.have.status(200); });",
+              "const body = pm.response.json();",
+              "if (body.accessToken) pm.collectionVariables.set('accessToken', body.accessToken);",
+              "if (body.username) pm.collectionVariables.set('username', body.username);",
+              "pm.test('JWT access token saved', function () { pm.expect(body.accessToken).to.be.a('string').and.not.empty; });",
+              "console.log('Authenticated user:', body.username, 'roles:', body.roles);"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"username\": \"analyst@secopshub.local\",\n  \"password\": \"Analyst@123\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/auth/login",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "auth",
+            "login"
+          ]
+        },
+        "description": "Optional RBAC demonstration. Overwrites accessToken. Analysts can create incidents and update status, but severity changes are reserved for incident managers."
+      },
+      "auth": {
+        "type": "noauth"
+      }
+    },
+    {
+      "name": "Role demo: Login as Auditor",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Login successful', function () { pm.response.to.have.status(200); });",
+              "const body = pm.response.json();",
+              "if (body.accessToken) pm.collectionVariables.set('accessToken', body.accessToken);",
+              "if (body.username) pm.collectionVariables.set('username', body.username);",
+              "pm.test('JWT access token saved', function () { pm.expect(body.accessToken).to.be.a('string').and.not.empty; });",
+              "console.log('Authenticated user:', body.username, 'roles:', body.roles);"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"username\": \"auditor@secopshub.local\",\n  \"password\": \"Auditor@123\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/auth/login",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "auth",
+            "login"
+          ]
+        },
+        "description": "Optional read-only RBAC demonstration. Overwrites accessToken. Read reports/incidents, then try a POST/PATCH and expect 403 Forbidden. Run Incident Manager login to restore full sample workflow permissions."
+      },
+      "auth": {
+        "type": "noauth"
+      }
+    }
+  ],
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{accessToken}}",
+        "type": "string"
+      }
+    ]
+  }
+}

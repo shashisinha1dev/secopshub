@@ -1,0 +1,124 @@
+services:
+  postgres:
+    image: postgres:16
+    environment:
+      POSTGRES_DB: secops
+      POSTGRES_USER: secops
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-dev-password-change-me}
+    ports:
+      - "5432:5432"
+    volumes:
+      - secopshub-postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U secops -d secops"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  alert-postgres:
+    image: postgres:16
+    environment:
+      POSTGRES_DB: secops_alerts
+      POSTGRES_USER: secops
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-dev-password-change-me}
+    ports:
+      - "5433:5432"
+    volumes:
+      - secopshub-alert-postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U secops -d secops_alerts"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  rabbitmq:
+    image: rabbitmq:3.13-management
+    environment:
+      RABBITMQ_DEFAULT_USER: secops
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:-dev-password-change-me}
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  incident-service:
+    build:
+      context: .
+      dockerfile: incident-service/Dockerfile
+    environment:
+      SPRING_PROFILES_ACTIVE: postgres
+      DB_URL: jdbc:postgresql://postgres:5432/secops
+      DB_USERNAME: secops
+      DB_PASSWORD: ${DB_PASSWORD:-dev-password-change-me}
+      SERVER_PORT: 8081
+      JWT_SECRET_BASE64: ${JWT_SECRET_BASE64:-c2Vjb3BzaHViLWxvY2FsLWRldi1qd3Qtc2VjcmV0LWtleS0zMi1ieXRlcw==}
+      RABBITMQ_HOST: rabbitmq
+      RABBITMQ_PORT: 5672
+      RABBITMQ_USERNAME: secops
+      RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD:-dev-password-change-me}
+    ports:
+      - "8081:8081"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+
+  alert-ingestion-service:
+    build:
+      context: .
+      dockerfile: alert-ingestion-service/Dockerfile
+    environment:
+      SPRING_PROFILES_ACTIVE: postgres
+      DB_URL: jdbc:postgresql://alert-postgres:5432/secops_alerts
+      DB_USERNAME: secops
+      DB_PASSWORD: ${DB_PASSWORD:-dev-password-change-me}
+      SERVER_PORT: 8082
+      JWT_SECRET_BASE64: ${JWT_SECRET_BASE64:-c2Vjb3BzaHViLWxvY2FsLWRldi1qd3Qtc2VjcmV0LWtleS0zMi1ieXRlcw==}
+      RABBITMQ_HOST: rabbitmq
+      RABBITMQ_PORT: 5672
+      RABBITMQ_USERNAME: secops
+      RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD:-dev-password-change-me}
+    ports:
+      - "8082:8082"
+    depends_on:
+      alert-postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+
+
+  auth-service:
+    build:
+      context: .
+      dockerfile: auth-service/Dockerfile
+    environment:
+      SERVER_PORT: 8083
+      JWT_SECRET_BASE64: ${JWT_SECRET_BASE64:-c2Vjb3BzaHViLWxvY2FsLWRldi1qd3Qtc2VjcmV0LWtleS0zMi1ieXRlcw==}
+    ports:
+      - "8083:8083"
+
+  api-gateway:
+    build:
+      context: .
+      dockerfile: api-gateway/Dockerfile
+    environment:
+      SERVER_PORT: 8080
+      JWT_SECRET_BASE64: ${JWT_SECRET_BASE64:-c2Vjb3BzaHViLWxvY2FsLWRldi1qd3Qtc2VjcmV0LWtleS0zMi1ieXRlcw==}
+      AUTH_SERVICE_URI: http://auth-service:8083
+      INCIDENT_SERVICE_URI: http://incident-service:8081
+      ALERT_INGESTION_SERVICE_URI: http://alert-ingestion-service:8082
+    ports:
+      - "8080:8080"
+    depends_on:
+      - incident-service
+      - alert-ingestion-service
+      - auth-service
+
+volumes:
+  secopshub-postgres-data:
+  secopshub-alert-postgres-data:
