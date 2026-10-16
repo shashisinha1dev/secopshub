@@ -26,6 +26,8 @@ jobs:
           distribution: temurin
           java-version: '21'
           cache: maven
+          cache-dependency-path: secopshub-microservices/**/pom.xml
 
       - name: Build and test backend
+        working-directory: secopshub-microservices
         run: mvn --batch-mode --no-transfer-progress clean verify
